@@ -8,7 +8,11 @@ Bluebird.config({
 });
 
 const hash = require('object-hash');
-const { uniqBy, path } = require('ramda');
+const {
+	uniqBy,
+	path,
+	merge,
+} = require('ramda');
 
 const TelegramBot = require('node-telegram-bot-api');
 const Agent = require('socks5-https-client/lib/Agent');
@@ -26,6 +30,7 @@ const withSession = f => async msg => {
 	const { id } = msg.from;
 
 	let { rows: [ { data: session } = {} ] } = await pg.query('SELECT * FROM session WHERE id = $1', [ id ]);
+
 	if (!session) {
 		session = {};
 		await pg.query('INSERT INTO session VALUES ($1, $2)', [ id, session ]);
@@ -34,8 +39,57 @@ const withSession = f => async msg => {
 	const newSession = await f(msg, session);
 
 	if (newSession) {
-		await pg.query('INSERT INTO session VALUES ($1, $2) ON CONFLICT DO UPDATE', [ id, newSession ]);
+		await pg.query('UPDATE session SET data = $2 WHERE id = $1', [ id, newSession ]);
 	}
+};
+
+const helpMessageHelp = `
+Forward or send a message here to get started (voice, gif, sticker, etc.).
+`;
+const helpMessageNew = `
+Now reply to your own message with some text or keywords for the inline search.
+`;
+const helpMessageReply = `
+You will now find your message via "@XPAM_BOT __FOO__" or something like that.
+
+You can also reply to your older messages to amend the search tags.
+You may also forward multiple messages and add search tags for them later in any order.
+
+If you need help again, send /help.
+`;
+
+const withHelp = (action, f) => async (msg, session) => {
+	const res = await f(msg, session);
+
+	let res2;
+
+	if (action === 'help' || action === 'start') {
+		res2 = { helpReceived: false };
+	}
+
+	if (!session.helpReceived || (res2 && !res2.helpReceived)) {
+		if (action === 'help' || action === 'start') {
+			bot.sendMessage(msg.chat.id, helpMessageHelp);
+		} else if (action === 'new') {
+			bot.sendMessage(msg.chat.id, helpMessageNew);
+		} else if (action === 'reply' && msg.text) {
+			bot.sendMessage(
+				msg.chat.id,
+				helpMessageReply
+					.replace(
+						'__FOO__',
+						msg.text.trim().split(/\s+/g)[0] || msg.text.slice(0, 10),
+					),
+			);
+			res2 = { helpReceived: true };
+		}
+	}
+
+	if (res2) {
+		return merge(merge(session || {}, res || {}), res2);
+	}
+
+	return res;
 };
 
 const uniqById = uniqBy(x => x.id);
@@ -127,12 +181,19 @@ bot.on('message', function (msg) {
 bot.on('private_message', function (msg) {
 	if (msg.reply_to_message) {
 		this.emit('reply_private_message', msg);
+	} else if (msg.text && msg.text.startsWith('/help')) {
+		this.emit('help_private_message', msg);
+	} else if (msg.text && msg.text.startsWith('/start')) {
+		this.emit('start_private_message', msg);
 	} else {
 		this.emit('new_private_message', msg);
 	}
 });
 
-bot.on('new_private_message', withSession(async msg => {
+bot.on('help_private_message', withSession(withHelp('help', () => {})));
+bot.on('start_private_message', withSession(withHelp('start', () => {})));
+
+bot.on('new_private_message', withSession(withHelp('new', async msg => {
 	console.log('new_private_message', msg);
 
 	await pg.query('INSERT INTO message VALUES (DEFAULT, $1, $2, $3, $4)', [
@@ -141,7 +202,7 @@ bot.on('new_private_message', withSession(async msg => {
 		msg.chat.id,
 		msg,
 	]);
-}));
+})));
 
 const selectReply = `
 SELECT id FROM message
@@ -151,7 +212,7 @@ AND chat_id = $3
 LIMIT 1
 `;
 
-bot.on('reply_private_message', withSession(async msg => {
+bot.on('reply_private_message', withSession(withHelp('reply', async msg => {
 	console.log('reply_private_message', msg);
 
 	const { rows: [ { id } ] } = await pg.query(selectReply, [
@@ -167,7 +228,7 @@ bot.on('reply_private_message', withSession(async msg => {
 		msg.chat.id,
 		msg,
 	]);
-}));
+})));
 
 const selectNthLast = `
 SELECT * FROM message
