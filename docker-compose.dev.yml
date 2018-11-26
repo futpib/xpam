@@ -1,0 +1,11 @@
+version: '3'
+services:
+
+  bot:
+    volumes:
+    - ./bot:/usr/src/app
+    environment:
+    - SOCKS_HOST=tor
+
+  tor:
+    image: dperson/torproxy
