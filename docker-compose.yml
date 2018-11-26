@@ -2,12 +2,14 @@ version: '3'
 services:
 
   bot:
+    restart: always
     build: ./bot
     environment:
     - PGHOST=postgres
     - PGUSER=postgres
 
   postgres:
+    restart: always
     image: postgres:11
     volumes:
     - ./postgres/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
