@@ -154,6 +154,16 @@ const messageToInlineQueryReply = withHashId((msg, reply = {}) => {
 		};
 	}
 
+	if (msg.text) {
+		return {
+			type: 'article',
+			title: msg.text,
+			input_message_content: {
+				message_text: msg.text,
+			},
+		};
+	}
+
 	console.log('messageToInlineQueryReply', msg);
 	return {
 		type: 'sticker',
