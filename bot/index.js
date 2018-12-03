@@ -1,6 +1,8 @@
 
 process.env.NTBA_FIX_319 = 1;
 
+require('make-promises-safe');
+
 const Bluebird = require('bluebird');
 
 Bluebird.config({
