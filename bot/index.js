@@ -1,7 +1,7 @@
 
 process.env.NTBA_FIX_319 = 1;
 
-require('make-promises-safe');
+require('make-promises-safe'); // eslint-disable-line import/no-unassigned-import
 
 const Bluebird = require('bluebird');
 
@@ -133,6 +133,13 @@ const messageToInlineQueryReply = withHashId((msg, reply = {}) => {
 		};
 	}
 
+	if (msg.audio && msg.audio.title) {
+		return {
+			type: 'audio',
+			audio_file_id: msg.audio.file_id,
+		};
+	}
+
 	if (msg.animation && msg.animation.mime_type === 'video/mp4') {
 		return {
 			type: 'mpeg4_gif',
@@ -169,7 +176,7 @@ const messageToInlineQueryReply = withHashId((msg, reply = {}) => {
 	console.log('messageToInlineQueryReply', msg);
 	return {
 		type: 'sticker',
-		sticker_file_id: 'CAADAgADywADfffLCNesQ46EsAPuAg',
+		sticker_file_id: 'CAADAgADHQAD7UJ-DAaGB7D7zfUMAg',
 	};
 });
 
