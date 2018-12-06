@@ -28,15 +28,16 @@ const socksHost = process.env.SOCKS_HOST || 'localhost';
 const pg = new Client();
 pg.connect();
 
+const ensureSessionExists = `
+INSERT INTO session VALUES ($1, $2) ON CONFLICT DO NOTHING
+`;
+
 const withSession = f => async msg => {
 	const { id } = msg.from;
 
-	let { rows: [ { data: session } = {} ] } = await pg.query('SELECT * FROM session WHERE id = $1', [ id ]);
+	await pg.query(ensureSessionExists, [ id, {} ]);
 
-	if (!session) {
-		session = {};
-		await pg.query('INSERT INTO session VALUES ($1, $2)', [ id, session ]);
-	}
+	const { rows: [ { data: session } ] } = await pg.query('SELECT * FROM session WHERE id = $1', [ id ]);
 
 	const newSession = await f(msg, session);
 
