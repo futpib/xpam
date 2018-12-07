@@ -14,6 +14,8 @@ const {
 	uniqBy,
 	path,
 	merge,
+	partition,
+	propEq,
 } = require('ramda');
 
 const TelegramBot = require('node-telegram-bot-api');
@@ -103,6 +105,26 @@ const withHashId = f => (...args) => {
 	return o;
 };
 
+const MESSAGE_TO_REPLY_FAILURES = {
+	audio_title: {
+		is_telegram_limitation: true,
+		message: 'Audio must have a title.',
+	},
+
+	video_note: {
+		is_telegram_limitation: true,
+		message: 'Telegram does not allow bots to send video notes from inline query.',
+	},
+
+	animation_mime_type: {
+		message: 'Only mpeg4 animations are supported.',
+	},
+
+	unexhaustive: {
+		message: 'I don\'t know how to work with this kind of message yet.',
+	},
+};
+
 const messageToInlineQueryReply = withHashId((msg, reply = {}) => {
 	const title = reply.text ||
 		path([ 'document', 'file_name' ], msg) ||
@@ -134,17 +156,35 @@ const messageToInlineQueryReply = withHashId((msg, reply = {}) => {
 		};
 	}
 
-	if (msg.audio && msg.audio.title) {
+	if (msg.audio) {
+		if (msg.audio.title) {
+			return {
+				type: 'audio',
+				audio_file_id: msg.audio.file_id,
+			};
+		}
+
 		return {
-			type: 'audio',
-			audio_file_id: msg.audio.file_id,
+			type: '_xpam_failure',
+			failure: 'audio_title',
+			title,
+			msg,
 		};
 	}
 
-	if (msg.animation && msg.animation.mime_type === 'video/mp4') {
+	if (msg.animation) {
+		if (msg.animation.mime_type === 'video/mp4') {
+			return {
+				type: 'mpeg4_gif',
+				mpeg4_file_id: msg.animation.file_id,
+			};
+		}
+
 		return {
-			type: 'mpeg4_gif',
-			mpeg4_file_id: msg.animation.file_id,
+			type: '_xpam_failure',
+			failure: 'animation_mime_type',
+			title,
+			msg,
 		};
 	}
 
@@ -153,6 +193,15 @@ const messageToInlineQueryReply = withHashId((msg, reply = {}) => {
 			type: 'video',
 			video_file_id: msg.video.file_id,
 			title,
+		};
+	}
+
+	if (msg.video_note) {
+		return {
+			type: '_xpam_failure',
+			failure: 'video_note',
+			title,
+			msg,
 		};
 	}
 
@@ -174,10 +223,11 @@ const messageToInlineQueryReply = withHashId((msg, reply = {}) => {
 		};
 	}
 
-	console.log('messageToInlineQueryReply', msg);
 	return {
-		type: 'sticker',
-		sticker_file_id: 'CAADAgADHQAD7UJ-DAaGB7D7zfUMAg',
+		type: '_xpam_failure',
+		failure: 'unexhaustive',
+		title,
+		msg,
 	};
 });
 
@@ -222,6 +272,22 @@ bot.on('new_private_message', withSession(withHelp('new', async msg => {
 		msg.chat.id,
 		msg,
 	]);
+
+	const inlineQueryReply = messageToInlineQueryReply(msg);
+	if (inlineQueryReply.type === '_xpam_failure') {
+		console.log('messageToInlineQueryReply', inlineQueryReply);
+		const failure = MESSAGE_TO_REPLY_FAILURES[inlineQueryReply.failure] ||
+			MESSAGE_TO_REPLY_FAILURES.unexhaustive;
+		const failureReply = [
+			'😞 ' + failure.message,
+			failure.is_telegram_limitation && 'This is a limitation of the Telegram Bot API.',
+			'I will remember your message, and you may reply to it, but you\'ll not be able to find it until this is fixed.',
+			'Sorry for the inconvenience.',
+		].filter(Boolean).join('\n\n');
+		bot.sendMessage(msg.chat.id, failureReply, {
+			reply_to_message_id: msg.message_id,
+		});
+	}
 })));
 
 const selectReply = `
@@ -334,7 +400,16 @@ bot.on('inline_query', async query => {
 			.map(addTitleIcon('🌎'))
 	);
 
-	bot.answerInlineQuery(query.id, uniqById(answer), {
+	const [ failures, successes ] = partition(propEq('type', '_xpam_failure'), answer);
+
+	if (successes.length === 0 && failures.length !== 0) {
+		successes.push(withHashId(() => ({
+			type: 'sticker',
+			sticker_file_id: 'CAADAgADHQAD7UJ-DAaGB7D7zfUMAg',
+		}))());
+	}
+
+	bot.answerInlineQuery(query.id, uniqById(successes), {
 		cache_time: 10,
 		is_personal: true,
 	});
