@@ -6,6 +6,8 @@ services:
     - ./bot:/usr/src/app
     environment:
     - SOCKS_HOST=tor
+    depends_on:
+    - tor
 
   tor:
     image: dperson/torproxy

@@ -301,11 +301,18 @@ LIMIT 1
 bot.on('reply_private_message', withSession(withHelp('reply', async msg => {
 	console.log('reply_private_message', msg);
 
-	const { rows: [ { id } ] } = await pg.query(selectReply, [
+	const { rows } = await pg.query(selectReply, [
 		msg.reply_to_message.message_id,
 		msg.reply_to_message.from.id,
 		msg.reply_to_message.chat.id,
 	]);
+
+	if (rows.length === 0) {
+		console.warn('reply to unknown message:', msg);
+		return;
+	}
+
+	const [ { id } ] = rows;
 
 	await pg.query('INSERT INTO reply VALUES (DEFAULT, $1, $2, $3, $4, $5)', [
 		id,
@@ -351,14 +358,33 @@ ORDER BY rank DESC
 LIMIT 3;
 `;
 
-const addTitleIcon = icon => o => {
+const insertInlineResults = `
+INSERT INTO inline_result (id, data) SELECT * FROM UNNEST ($1::text[], $2::jsonb[]) ON CONFLICT DO NOTHING
+`;
+
+const selectRecentlyUsed = `
+SELECT data
+FROM inline_result_lru
+INNER JOIN inline_result
+ON inline_result.id = inline_result_lru.inline_result_id
+WHERE inline_result_lru.session_id = $1
+LIMIT 3
+`;
+
+const addTitleIcon = getIconFor => o => {
 	if (o.title) {
-		o.title = icon + ' ' + o.title;
+		const icon = getIconFor(o);
+		if (icon) {
+			return merge(o, {
+				title: icon + ' ' + o.title,
+			});
+		}
 	}
 	return o;
 };
 
 bot.on('inline_query', async query => {
+	const showRecent = query.query === '';
 	const q = query.query || '-1';
 
 	const answer = [];
@@ -386,18 +412,25 @@ bot.on('inline_query', async query => {
 		}
 	}
 
+	if (showRecent) {
+		const { rows: recentAnswerRows } = await pg.query(selectRecentlyUsed, [ query.from.id ]);
+		answer.push(
+			...recentAnswerRows
+				.map(r => r.data)
+				.map(addTitleIcon(() => '🕰'))
+		);
+	}
+
 	const { rows: personalRows } = await pg.query(selectPersonalByText, [ q, query.from.id ]);
 	answer.push(
 		...personalRows
 			.map(r => messageToInlineQueryReply(r.data, r.reply_data))
-			.map(addTitleIcon('🏠'))
 	);
 
 	const { rows: globalRows } = await pg.query(selectGlobalByText, [ q ]);
 	answer.push(
 		...globalRows
 			.map(r => messageToInlineQueryReply(r.data, r.reply_data))
-			.map(addTitleIcon('🌎'))
 	);
 
 	const [ failures, successes ] = partition(propEq('type', '_xpam_failure'), answer);
@@ -409,10 +442,51 @@ bot.on('inline_query', async query => {
 		}))());
 	}
 
-	bot.answerInlineQuery(query.id, uniqById(successes), {
+	bot.answerInlineQuery(query.id, uniqById(successes).map(addTitleIcon(r => {
+		if (personalRows.includes(r)) {
+			return '🏠';
+		}
+		if (globalRows.includes(r)) {
+			return '🌎';
+		}
+		return undefined;
+	})), {
 		cache_time: 10,
 		is_personal: true,
 	});
+
+	await pg.query(insertInlineResults, [
+		successes.map(r => r.id),
+		successes,
+	]);
+});
+
+const insertInlineResultLru = `
+INSERT INTO inline_result_lru
+VALUES ($1, $2, DEFAULT)
+ON CONFLICT (session_id, inline_result_id) DO UPDATE
+SET last_chosen_at = NOW()
+`;
+
+const deleteInlineResultLru = `
+DELETE FROM inline_result_lru
+WHERE ctid IN (
+    SELECT ctid
+    FROM inline_result_lru
+    ORDER BY last_chosen_at DESC
+    OFFSET 3
+)
+`;
+
+bot.on('chosen_inline_result', async msg => {
+	console.log('chosen_inline_result', msg);
+
+	await pg.query(insertInlineResultLru, [
+		msg.from.id,
+		msg.result_id,
+	]);
+
+	await pg.query(deleteInlineResultLru);
 });
 
 bot.on('polling_error', error => {
