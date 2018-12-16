@@ -383,7 +383,7 @@ const addTitleIcon = getIconFor => o => {
 	return o;
 };
 
-bot.on('inline_query', async query => {
+bot.on('inline_query', withSession(async query => {
 	const showRecent = query.query === '';
 	const q = query.query || '-1';
 
@@ -459,7 +459,7 @@ bot.on('inline_query', async query => {
 		successes.map(r => r.id),
 		successes,
 	]);
-});
+}));
 
 const insertInlineResultLru = `
 INSERT INTO inline_result_lru
@@ -473,6 +473,7 @@ DELETE FROM inline_result_lru
 WHERE ctid IN (
     SELECT ctid
     FROM inline_result_lru
+    WHERE session_id = $1
     ORDER BY last_chosen_at DESC
     OFFSET 3
 )
@@ -486,7 +487,9 @@ bot.on('chosen_inline_result', async msg => {
 		msg.result_id,
 	]);
 
-	await pg.query(deleteInlineResultLru);
+	await pg.query(deleteInlineResultLru, [
+		msg.from.id,
+	]);
 });
 
 bot.on('polling_error', error => {
