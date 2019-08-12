@@ -371,6 +371,21 @@ WHERE inline_result_lru.session_id = $1
 LIMIT 3
 `;
 
+const selectGlobalRecentlyUsed = `
+SELECT data
+FROM inline_result
+	INNER JOIN
+		(
+			SELECT inline_result_id
+			FROM inline_result_lru
+			GROUP BY inline_result_id
+			HAVING count(session_id) > 2
+			ORDER BY max(last_chosen_at) DESC
+			LIMIT 4
+		) as global_lru
+	ON inline_result.id = global_lru.inline_result_id
+`;
+
 const addTitleIcon = getIconFor => o => {
 	if (o.title) {
 		const icon = getIconFor(o);
@@ -419,6 +434,15 @@ bot.on('inline_query', withSession(async query => {
 				.map(r => r.data)
 				.map(addTitleIcon(() => '🕰'))
 		);
+
+		const { rows: recentGlobalAnswerRows } = await pg.query(selectGlobalRecentlyUsed);
+		if (answer.length === 0) {
+			answer.push(
+				...recentGlobalAnswerRows
+					.map(r => r.data)
+					.map(addTitleIcon(() => '🔥'))
+			);
+		}
 	}
 
 	const { rows: personalRows } = await pg.query(selectPersonalByText, [ q, query.from.id ]);
