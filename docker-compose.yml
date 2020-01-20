@@ -2,7 +2,7 @@ version: '3'
 services:
 
   bot:
-    restart: always
+    restart: unless-stopped
     build: ./bot
     environment:
     - PGHOST=postgres
@@ -12,7 +12,7 @@ services:
     - flyway
 
   postgres:
-    restart: always
+    restart: unless-stopped
     image: postgres:11
     volumes:
     - ./postgres/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
