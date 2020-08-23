@@ -7,19 +7,22 @@ services:
     environment:
     - PGHOST=postgres
     - PGUSER=postgres
+    - PGPASSWORD=postgres
     depends_on:
     - postgres
     - flyway
 
   postgres:
     restart: unless-stopped
-    image: postgres:11
+    image: postgres:13
+    environment:
+    - POSTGRES_PASSWORD=postgres
     volumes:
     - ./postgres/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
 
   flyway:
-    image: boxfuse/flyway:5
-    command: -url=jdbc:postgresql://postgres/postgres -user=postgres -connectRetries=60 -baselineOnMigrate=true migrate
+    image: flyway/flyway:6
+    command: -url=jdbc:postgresql://postgres/postgres -user=postgres -password=postgres -connectRetries=60 -baselineOnMigrate=true migrate
     volumes:
     - ./flyway/sql:/flyway/sql
     depends_on:
