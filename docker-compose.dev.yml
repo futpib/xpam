@@ -11,3 +11,7 @@ services:
 
   tor:
     image: dperson/torproxy
+
+  webapp:
+    restart: unless-stopped
+    build: ./webapp

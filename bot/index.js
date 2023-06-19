@@ -495,11 +495,11 @@ SET last_chosen_at = NOW()
 const deleteInlineResultLru = `
 DELETE FROM inline_result_lru
 WHERE ctid IN (
-    SELECT ctid
-    FROM inline_result_lru
-    WHERE session_id = $1
-    ORDER BY last_chosen_at DESC
-    OFFSET 3
+	SELECT ctid
+	FROM inline_result_lru
+	WHERE session_id = $1
+	ORDER BY last_chosen_at DESC
+	OFFSET 3
 )
 `;
 
