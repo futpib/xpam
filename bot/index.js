@@ -24,8 +24,7 @@ const Agent = require('socks5-https-client/lib/Agent');
 const { Client } = require('pg');
 
 const token = process.env.TOKEN;
-const useTor = process.env.NODE_ENV !== 'production';
-const socksHost = process.env.SOCKS_HOST || 'localhost';
+const socksHost = process.env.SOCKS_HOST;
 
 const pg = new Client();
 pg.connect();
@@ -34,14 +33,14 @@ const ensureSessionExists = `
 INSERT INTO session VALUES ($1, $2) ON CONFLICT DO NOTHING
 `;
 
-const withSession = f => async msg => {
-	const { id } = msg.from;
+const withSession = f => async message => {
+	const { id } = message.from;
 
 	await pg.query(ensureSessionExists, [ id, {} ]);
 
 	const { rows: [ { data: session } ] } = await pg.query('SELECT * FROM session WHERE id = $1', [ id ]);
 
-	const newSession = await f(msg, session);
+	const newSession = await f(message, session);
 
 	if (newSession) {
 		await pg.query('UPDATE session SET data = $2 WHERE id = $1', [ id, newSession ]);
@@ -63,38 +62,38 @@ You may also forward multiple messages and add search tags for them later in any
 If you need help again, send /help.
 `;
 
-const withHelp = (action, f) => async (msg, session) => {
-	const res = await f(msg, session);
+const withHelp = (action, f) => async (message, session) => {
+	const result = await f(message, session);
 
-	let res2;
+	let result2;
 
 	if (action === 'help' || action === 'start') {
-		res2 = { helpReceived: false };
+		result2 = { helpReceived: false };
 	}
 
-	if (!session.helpReceived || (res2 && !res2.helpReceived)) {
+	if (!session.helpReceived || (result2 && !result2.helpReceived)) {
 		if (action === 'help' || action === 'start') {
-			bot.sendMessage(msg.chat.id, helpMessageHelp);
+			bot.sendMessage(message.chat.id, helpMessageHelp);
 		} else if (action === 'new') {
-			bot.sendMessage(msg.chat.id, helpMessageNew);
-		} else if (action === 'reply' && msg.text) {
+			bot.sendMessage(message.chat.id, helpMessageNew);
+		} else if (action === 'reply' && message.text) {
 			bot.sendMessage(
-				msg.chat.id,
+				message.chat.id,
 				helpMessageReply
 					.replace(
 						'__FOO__',
-						msg.text.trim().split(/\s+/g)[0] || msg.text.slice(0, 10),
+						message.text.trim().split(/\s+/g)[0] || message.text.slice(0, 10),
 					),
 			);
-			res2 = { helpReceived: true };
+			result2 = { helpReceived: true };
 		}
 	}
 
-	if (res2) {
-		return merge(merge(session || {}, res || {}), res2);
+	if (result2) {
+		return merge(merge(session || {}, result || {}), result2);
 	}
 
-	return res;
+	return result;
 };
 
 const uniqById = uniqBy(x => x.id);
@@ -125,42 +124,42 @@ const MESSAGE_TO_REPLY_FAILURES = {
 	},
 };
 
-const messageToInlineQueryReply = withHashId((msg, reply = {}) => {
+const messageToInlineQueryReply = withHashId((message, reply = {}) => {
 	const title = reply.text ||
-		path([ 'document', 'file_name' ], msg) ||
-		path([ 'forward_from', 'first_name' ], msg) ||
-		path([ 'from', 'first_name' ], msg) ||
-		console.warn('title', { msg, reply }) ||
+		path([ 'document', 'file_name' ], message) ||
+		path([ 'forward_from', 'first_name' ], message) ||
+		path([ 'from', 'first_name' ], message) ||
+		console.warn('title', { message, reply }) ||
 		'❓❓❓'; // TODO
 
-	if (msg.sticker) {
+	if (message.sticker) {
 		return {
 			type: 'sticker',
-			sticker_file_id: msg.sticker.file_id,
+			sticker_file_id: message.sticker.file_id,
 		};
 	}
 
-	if (msg.photo) {
-		const photo = msg.photo[msg.photo.length - 1];
+	if (message.photo) {
+		const photo = message.photo[message.photo.length - 1];
 		return {
 			type: 'photo',
 			photo_file_id: photo.file_id,
 		};
 	}
 
-	if (msg.voice) {
+	if (message.voice) {
 		return {
 			type: 'voice',
-			voice_file_id: msg.voice.file_id,
+			voice_file_id: message.voice.file_id,
 			title,
 		};
 	}
 
-	if (msg.audio) {
-		if (msg.audio.title) {
+	if (message.audio) {
+		if (message.audio.title) {
 			return {
 				type: 'audio',
-				audio_file_id: msg.audio.file_id,
+				audio_file_id: message.audio.file_id,
 			};
 		}
 
@@ -168,15 +167,15 @@ const messageToInlineQueryReply = withHashId((msg, reply = {}) => {
 			type: '_xpam_failure',
 			failure: 'audio_title',
 			title,
-			msg,
+			message,
 		};
 	}
 
-	if (msg.animation) {
-		if (msg.animation.mime_type === 'video/mp4') {
+	if (message.animation) {
+		if (message.animation.mime_type === 'video/mp4') {
 			return {
 				type: 'mpeg4_gif',
-				mpeg4_file_id: msg.animation.file_id,
+				mpeg4_file_id: message.animation.file_id,
 			};
 		}
 
@@ -184,41 +183,41 @@ const messageToInlineQueryReply = withHashId((msg, reply = {}) => {
 			type: '_xpam_failure',
 			failure: 'animation_mime_type',
 			title,
-			msg,
+			message,
 		};
 	}
 
-	if (msg.video) {
+	if (message.video) {
 		return {
 			type: 'video',
-			video_file_id: msg.video.file_id,
+			video_file_id: message.video.file_id,
 			title,
 		};
 	}
 
-	if (msg.video_note) {
+	if (message.video_note) {
 		return {
 			type: '_xpam_failure',
 			failure: 'video_note',
 			title,
-			msg,
+			message,
 		};
 	}
 
-	if (msg.document) {
+	if (message.document) {
 		return {
 			type: 'document',
-			document_file_id: msg.document.file_id,
+			document_file_id: message.document.file_id,
 			title,
 		};
 	}
 
-	if (msg.text) {
+	if (message.text) {
 		return {
 			type: 'article',
-			title: msg.text,
+			title: message.text,
 			input_message_content: {
-				message_text: msg.text,
+				message_text: message.text,
 			},
 		};
 	}
@@ -227,13 +226,14 @@ const messageToInlineQueryReply = withHashId((msg, reply = {}) => {
 		type: '_xpam_failure',
 		failure: 'unexhaustive',
 		title,
-		msg,
+		message,
 	};
 });
 
 const bot = new TelegramBot(token, {
+	autoStart: true,
 	polling: true,
-	request: useTor ? {
+	request: socksHost ? {
 		agentClass: Agent,
 		agentOptions: {
 			socksHost,
@@ -242,38 +242,38 @@ const bot = new TelegramBot(token, {
 	} : {},
 });
 
-bot.on('message', function (msg) {
-	if (msg.chat && msg.chat.type === 'private') {
-		this.emit('private_message', msg);
+bot.on('message', function (message) {
+	if (message.chat && message.chat.type === 'private') {
+		this.emit('private_message', message);
 	}
 });
 
-bot.on('private_message', function (msg) {
-	if (msg.reply_to_message) {
-		this.emit('reply_private_message', msg);
-	} else if (msg.text && msg.text.startsWith('/help')) {
-		this.emit('help_private_message', msg);
-	} else if (msg.text && msg.text.startsWith('/start')) {
-		this.emit('start_private_message', msg);
+bot.on('private_message', function (message) {
+	if (message.reply_to_message) {
+		this.emit('reply_private_message', message);
+	} else if (message.text && message.text.startsWith('/help')) {
+		this.emit('help_private_message', message);
+	} else if (message.text && message.text.startsWith('/start')) {
+		this.emit('start_private_message', message);
 	} else {
-		this.emit('new_private_message', msg);
+		this.emit('new_private_message', message);
 	}
 });
 
 bot.on('help_private_message', withSession(withHelp('help', () => {})));
 bot.on('start_private_message', withSession(withHelp('start', () => {})));
 
-bot.on('new_private_message', withSession(withHelp('new', async msg => {
-	console.log('new_private_message', msg);
+bot.on('new_private_message', withSession(withHelp('new', async message => {
+	console.log('new_private_message', message);
 
 	await pg.query('INSERT INTO message VALUES (DEFAULT, $1, $2, $3, $4)', [
-		msg.message_id,
-		msg.from.id,
-		msg.chat.id,
-		msg,
+		message.message_id,
+		message.from.id,
+		message.chat.id,
+		message,
 	]);
 
-	const inlineQueryReply = messageToInlineQueryReply(msg);
+	const inlineQueryReply = messageToInlineQueryReply(message);
 	if (inlineQueryReply.type === '_xpam_failure') {
 		console.log('messageToInlineQueryReply', inlineQueryReply);
 		const failure = MESSAGE_TO_REPLY_FAILURES[inlineQueryReply.failure] ||
@@ -284,8 +284,8 @@ bot.on('new_private_message', withSession(withHelp('new', async msg => {
 			'I will remember your message, and you may reply to it, but you\'ll not be able to find it until this is fixed.',
 			'Sorry for the inconvenience.',
 		].filter(Boolean).join('\n\n');
-		bot.sendMessage(msg.chat.id, failureReply, {
-			reply_to_message_id: msg.message_id,
+		bot.sendMessage(message.chat.id, failureReply, {
+			reply_to_message_id: message.message_id,
 		});
 	}
 })));
@@ -298,17 +298,17 @@ AND chat_id = $3
 LIMIT 1
 `;
 
-bot.on('reply_private_message', withSession(withHelp('reply', async msg => {
-	console.log('reply_private_message', msg);
+bot.on('reply_private_message', withSession(withHelp('reply', async message => {
+	console.log('reply_private_message', message);
 
 	const { rows } = await pg.query(selectReply, [
-		msg.reply_to_message.message_id,
-		msg.reply_to_message.from.id,
-		msg.reply_to_message.chat.id,
+		message.reply_to_message.message_id,
+		message.reply_to_message.from.id,
+		message.reply_to_message.chat.id,
 	]);
 
 	if (rows.length === 0) {
-		console.warn('reply to unknown message:', msg);
+		console.warn('reply to unknown message:', message);
 		return;
 	}
 
@@ -316,10 +316,10 @@ bot.on('reply_private_message', withSession(withHelp('reply', async msg => {
 
 	await pg.query('INSERT INTO reply VALUES (DEFAULT, $1, $2, $3, $4, $5)', [
 		id,
-		msg.message_id,
-		msg.from.id,
-		msg.chat.id,
-		msg,
+		message.message_id,
+		message.from.id,
+		message.chat.id,
+		message,
 	]);
 })));
 
@@ -395,21 +395,22 @@ const addTitleIcon = getIconFor => o => {
 			});
 		}
 	}
+
 	return o;
 };
 
 bot.on('inline_query', withSession(async query => {
-	const showRecent = query.query === '';
+	const showRecent = query.query.trim() === '';
 	const q = query.query || '-1';
 
 	const answer = [];
 
-	const i = Number.parseInt(q, 10);
-	if (!isNaN(i)) {
-		if (i < 0) {
+	const qIndex = Number.parseInt(q, 10);
+	if (!Number.isNaN(qIndex)) {
+		if (qIndex < 0) {
 			const { rows } = await pg.query(selectNthLast, [
 				query.from.id,
-				Math.abs(i) - 1,
+				Math.abs(qIndex) - 1,
 			]);
 			if (rows.length > 0) {
 				const [ { data } ] = rows;
@@ -418,7 +419,7 @@ bot.on('inline_query', withSession(async query => {
 		} else {
 			const { rows } = await pg.query(selectNthFirst, [
 				query.from.id,
-				Math.abs(i),
+				Math.abs(qIndex),
 			]);
 			if (rows.length > 0) {
 				const [ { data } ] = rows;
@@ -432,7 +433,7 @@ bot.on('inline_query', withSession(async query => {
 		answer.push(
 			...recentAnswerRows
 				.map(r => r.data)
-				.map(addTitleIcon(() => '🕰'))
+				.map(addTitleIcon(() => '🕰')),
 		);
 
 		const { rows: recentGlobalAnswerRows } = await pg.query(selectGlobalRecentlyUsed);
@@ -440,7 +441,7 @@ bot.on('inline_query', withSession(async query => {
 			answer.push(
 				...recentGlobalAnswerRows
 					.map(r => r.data)
-					.map(addTitleIcon(() => '🔥'))
+					.map(addTitleIcon(() => '🔥')),
 			);
 		}
 	}
@@ -448,13 +449,13 @@ bot.on('inline_query', withSession(async query => {
 	const { rows: personalRows } = await pg.query(selectPersonalByText, [ q, query.from.id ]);
 	answer.push(
 		...personalRows
-			.map(r => messageToInlineQueryReply(r.data, r.reply_data))
+			.map(r => messageToInlineQueryReply(r.data, r.reply_data)),
 	);
 
 	const { rows: globalRows } = await pg.query(selectGlobalByText, [ q ]);
 	answer.push(
 		...globalRows
-			.map(r => messageToInlineQueryReply(r.data, r.reply_data))
+			.map(r => messageToInlineQueryReply(r.data, r.reply_data)),
 	);
 
 	const [ failures, successes ] = partition(propEq('type', '_xpam_failure'), answer);
@@ -466,17 +467,44 @@ bot.on('inline_query', withSession(async query => {
 		}))());
 	}
 
-	bot.answerInlineQuery(query.id, uniqById(successes).map(addTitleIcon(r => {
+	const inlineQueryResults = uniqById(successes).map(addTitleIcon(r => {
 		if (personalRows.includes(r)) {
 			return '🏠';
 		}
+
 		if (globalRows.includes(r)) {
 			return '🌎';
 		}
+
 		return undefined;
-	})), {
+	}));
+
+	const buttonWebAppUrl = new URL('https://xpam.vercel.app/');
+	let buttonText;
+
+	if (
+		inlineQueryResults.length > 0
+			&& query.query.trim().length > 0
+			&& !showRecent
+			&& Number.isNaN(qIndex)
+	) {
+		buttonText = 'Advanced search';
+		buttonWebAppUrl.pathname = 'search';
+		buttonWebAppUrl.searchParams.set('q', query.query);
+	} else {
+		buttonText = 'Explore';
+		buttonWebAppUrl.pathname = 'explore';
+	}
+
+	bot.answerInlineQuery(query.id, inlineQueryResults, {
 		cache_time: 10,
 		is_personal: true,
+		button: JSON.stringify({
+			text: buttonText,
+			web_app: {
+				url: buttonWebAppUrl.toString(),
+			},
+		}),
 	});
 
 	await pg.query(insertInlineResults, [
@@ -503,16 +531,16 @@ WHERE ctid IN (
 )
 `;
 
-bot.on('chosen_inline_result', async msg => {
-	console.log('chosen_inline_result', msg);
+bot.on('chosen_inline_result', async message => {
+	console.log('chosen_inline_result', message);
 
 	await pg.query(insertInlineResultLru, [
-		msg.from.id,
-		msg.result_id,
+		message.from.id,
+		message.result_id,
 	]);
 
 	await pg.query(deleteInlineResultLru, [
-		msg.from.id,
+		message.from.id,
 	]);
 });
 

@@ -3,14 +3,14 @@ services:
 
   bot:
     volumes:
-    - ./bot:/usr/src/app
-    environment:
-    - SOCKS_HOST=tor
-    depends_on:
-    - tor
+      - ./bot:/usr/src/app
+    # environment:
+    #   - SOCKS_HOST=tor
+    # depends_on:
+    #   - tor
 
-  tor:
-    image: dperson/torproxy
+  # tor:
+  #   image: dperson/torproxy
 
   webapp:
     restart: unless-stopped
