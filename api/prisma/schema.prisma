@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model flyway_schema_history {
+  installed_rank Int      @id(map: "flyway_schema_history_pk")
+  version        String?  @db.VarChar(50)
+  description    String   @db.VarChar(200)
+  type           String   @db.VarChar(20)
+  script         String   @db.VarChar(1000)
+  checksum       Int?
+  installed_by   String   @db.VarChar(100)
+  installed_on   DateTime @default(now()) @db.Timestamp(6)
+  execution_time Int
+  success        Boolean
+
+  @@index([success], map: "flyway_schema_history_s_idx")
+}
+
+model inline_result {
+  id                String              @id
+  data              Json?
+  inline_result_lru inline_result_lru[]
+}
+
+model inline_result_lru {
+  session_id       BigInt
+  inline_result_id String
+  last_chosen_at   DateTime      @default(now()) @db.Timestamp(6)
+  inline_result    inline_result @relation(fields: [inline_result_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  session          session       @relation(fields: [session_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([session_id, inline_result_id])
+}
+
+model message {
+  id         BigInt  @id @default(autoincrement())
+  message_id BigInt
+  from_id    BigInt
+  chat_id    BigInt
+  data       Json?
+  session    session @relation(fields: [from_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reply      reply[]
+
+  @@index([message_id, from_id, chat_id], map: "message_index")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model reply {
+  id                  BigInt  @id @default(autoincrement())
+  reply_to_message_id BigInt
+  message_id          BigInt
+  from_id             BigInt
+  chat_id             BigInt
+  data                Json?
+  session             session @relation(fields: [from_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  message             message @relation(fields: [reply_to_message_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([message_id, from_id, chat_id], map: "reply_index")
+}
+
+model session {
+  id                BigInt              @id
+  data              Json?
+  inline_result_lru inline_result_lru[]
+  message           message[]
+  reply             reply[]
+}

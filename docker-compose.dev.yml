@@ -15,3 +15,7 @@ services:
   webapp:
     restart: unless-stopped
     build: ./webapp
+
+  postgres:
+    ports:
+      - '5437:5432'

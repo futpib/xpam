@@ -125,12 +125,14 @@ const MESSAGE_TO_REPLY_FAILURES = {
 };
 
 const messageToInlineQueryReply = withHashId((message, reply = {}) => {
-	const title = reply.text ||
-		path([ 'document', 'file_name' ], message) ||
-		path([ 'forward_from', 'first_name' ], message) ||
-		path([ 'from', 'first_name' ], message) ||
-		console.warn('title', { message, reply }) ||
-		'❓❓❓'; // TODO
+	const title = (
+		reply.text
+			|| path([ 'document', 'file_name' ], message)
+			|| path([ 'forward_from', 'first_name' ], message)
+			|| path([ 'from', 'first_name' ], message)
+			|| console.warn('title', { message, reply })
+			|| '❓❓❓' // TODO
+	);
 
 	if (message.sticker) {
 		return {
@@ -231,7 +233,6 @@ const messageToInlineQueryReply = withHashId((message, reply = {}) => {
 });
 
 const bot = new TelegramBot(token, {
-	autoStart: true,
 	polling: true,
 	request: socksHost ? {
 		agentClass: Agent,
@@ -338,7 +339,9 @@ LIMIT 1 OFFSET $2
 `;
 
 const selectPersonalByText = `
-SELECT message.data, reply.data AS reply_data, ts_rank(vector, query) AS rank
+SELECT DISTINCT ON (message.id) message.data
+	, reply.data AS reply_data
+	, ts_rank(vector, query) AS rank
 FROM message JOIN reply ON message.id = reply.reply_to_message_id
 , plainto_tsquery($1) query
 , my_to_tsvector(reply.data->>'text') vector
@@ -349,7 +352,9 @@ LIMIT 3;
 `;
 
 const selectGlobalByText = `
-SELECT message.data, reply.data AS reply_data, ts_rank(vector, query) AS rank
+SELECT DISTINCT ON (message.id) message.data
+	, reply.data AS reply_data
+	, ts_rank(vector, query) AS rank
 FROM message JOIN reply ON message.id = reply.reply_to_message_id
 , plainto_tsquery($1) query
 , my_to_tsvector(reply.data->>'text') vector
