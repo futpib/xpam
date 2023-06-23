@@ -9,6 +9,17 @@ import { ListItem } from "./ListItem";
 import { ListItemSearchResultAvatar } from "./ListItemSearchResultAvatar";
 import styles from './SearchResults.module.css';
 
+declare global {
+	interface Window {
+		Telegram?: {
+			WebApp?: {
+				version?: string;
+				switchInlineQuery?: (query: string, choose_chat_types?: string[]) => void;
+			};
+		};
+	}
+}
+
 export function SearchResults({
 	query,
 }: {
@@ -51,12 +62,28 @@ export function SearchResults({
 		}
 	}, [ isAfterSearchResultsVisible, hasNextPage, fetchNextPage ]);
 
+	const createHandleClick = (result: SearchResultDTO) => () => {
+		if (
+			result.title
+			&& window.Telegram?.WebApp?.version
+			&& Number.parseFloat(window.Telegram.WebApp.version) >= 6.7
+			&& window.Telegram?.WebApp?.switchInlineQuery
+		) {
+			window.Telegram.WebApp.switchInlineQuery(result.title);
+		} else {
+			console.info('Would call window.Telegram.WebApp.switchInlineQuery with %o', result.title);
+		}
+	};
+
 	return (
 		<div>
 			{data?.pages.map((page, i) => (
 				<div key={i}>
 					{page.data.map((result, j) => (
-						<ListItem key={j}>
+						<ListItem
+							key={j}
+							onClick={createHandleClick(result)}
+						>
 							<ListItemSearchResultAvatar
 								value={result}
 							/>

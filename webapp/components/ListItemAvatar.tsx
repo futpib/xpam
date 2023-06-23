@@ -6,12 +6,17 @@ import classNames from 'classnames';
 export function ListItemAvatar({
 	className,
 	children,
+	onClick,
 }: {
 	className?: string;
 	children?: ReactNode;
+	onClick?: () => void;
 }) {
 	return (
-		<div className={classNames(styles.listItemAvatar, className)}>
+		<div
+			className={classNames(styles.listItemAvatar, className)}
+			onClick={onClick}
+		>
 			{children}
 		</div>
 	);
