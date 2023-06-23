@@ -17,13 +17,19 @@ export class AppController {
 	@Get('search')
 	async search(
 		@Query('q') query: undefined | string,
+		@Query('skip') skip_: undefined | string,
 		@Res() response: Response,
 	): Promise<Response> {
 		if (typeof query !== 'string') {
 			return response.status(400).send();
 		}
 
-		const responseData = await this.appService.search(query.trim() || '');
+		const skip = typeof skip_ === 'string' ? parseInt(skip_, 10) : 0;
+
+		const responseData = await this.appService.search({
+			query: query.trim() || '',
+			skip,
+		});
 
 		return (
 			response

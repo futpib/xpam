@@ -46,9 +46,13 @@ type MessageData = {
 export class AppService {
 	constructor(private readonly prismaService: PrismaService) {}
 
-	async search(query: string): Promise<PaginatedResponse<SearchResultDTO>> {
-		const skip = 0;
-
+	async search({
+		query,
+		skip = 0,
+	}: {
+		query: string;
+		skip?: number;
+	}): Promise<PaginatedResponse<SearchResultDTO>> {
 		type Row = {
 			message_data: MessageData;
 			reply_data: ReplyData;
@@ -67,19 +71,20 @@ export class AppService {
 		`;
 
 		return {
-			data: data.flatMap((reply) => {
+			data: data.flatMap((reply): SearchResultDTO => {
 				const replyData = reply.reply_data;
 				const messageData = reply.message_data;
 
-				const searchResult: Partial<SearchResultDTO> = {
+				return {
 					title: (
 						replyData.text
 							|| replyData.document?.file_name
 							|| replyData.forward_from?.first_name
 							|| replyData.from?.first_name
+							|| null
 					),
 
-					message: ((): undefined | SearchResultDTO['message'] => {
+					message: ((): null | SearchResultDTO['message'] => {
 						if (messageData.sticker) {
 							return {
 								type: 'sticker',
@@ -141,15 +146,9 @@ export class AppService {
 							};
 						}
 
-						return undefined;
+						return null;
 					})(),
 				};
-
-				if (!searchResult.title || !searchResult.message) {
-					return [];
-				}
-
-				return [ searchResult as SearchResultDTO ];
 			}),
 		};
 	}

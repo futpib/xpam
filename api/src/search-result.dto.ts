@@ -1,7 +1,10 @@
 
 export type SearchResultDTO = {
-	title: string;
+	title:
+		| null
+		| string;
 	message:
+		| null
 		| {
 			type: 'sticker';
 			sticker_file_id: string;

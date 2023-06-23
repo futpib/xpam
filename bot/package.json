@@ -20,7 +20,7 @@
   "devDependencies": {
     "ava": "^3.11.1",
     "eslint-config-xo-overrides": "^1.4.0",
-    "nodemon": "^2.0.4",
+    "nodemon": "^2.0.22",
     "xo": "^0.33.0"
   },
   "xo": {
