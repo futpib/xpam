@@ -339,7 +339,7 @@ LIMIT 1 OFFSET $2
 `;
 
 const selectPersonalByText = `
-SELECT DISTINCT ON (message.id) message.data
+SELECT message.data
 	, reply.data AS reply_data
 	, ts_rank(vector, query) AS rank
 FROM message JOIN reply ON message.id = reply.reply_to_message_id
@@ -352,7 +352,7 @@ LIMIT 3;
 `;
 
 const selectGlobalByText = `
-SELECT DISTINCT ON (message.id) message.data
+SELECT message.data
 	, reply.data AS reply_data
 	, ts_rank(vector, query) AS rank
 FROM message JOIN reply ON message.id = reply.reply_to_message_id
