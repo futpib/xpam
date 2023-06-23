@@ -6,6 +6,7 @@ import styles from './ListItemSearchResultAvatar.module.css';
 import { useMemo } from 'react';
 import { TelegramVideo } from './TelegramVideo';
 import { TelegramImageOrLottie } from './TelegramImageOrLottie';
+import { TelegramAudioPlayButton } from './TelegramAudioPlayButton';
 
 export function ListItemSearchResultAvatar({
 	value,
@@ -56,9 +57,10 @@ export function ListItemSearchResultAvatar({
 					fileId={imageFileId}
 				/>
 			) : audioFileId ? (
-				<>
-					TODO: audio
-				</>
+				<TelegramAudioPlayButton
+					className={styles.listItemSearchResultAvatarTelegramAudio}
+					fileId={audioFileId}
+				/>
 			) : videoFileId ? (
 				<TelegramVideo
 					autoPlay
