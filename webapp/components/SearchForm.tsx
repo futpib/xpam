@@ -4,6 +4,7 @@ import { useState } from "react";
 import { SearchResults } from "./SearchResults";
 import { Input } from "./Input";
 import styles from "./SearchForm.module.css";
+import { Paper } from "./Paper";
 
 export function SearchForm({
 	initialQuery,
@@ -13,7 +14,7 @@ export function SearchForm({
 	const [query, setQuery] = useState(initialQuery);
 
 	return (
-		<form
+		<Paper
 			className={styles.searchForm}
 		>
 			<Input
@@ -25,6 +26,6 @@ export function SearchForm({
 			<SearchResults
 				query={query}
 			/>
-		</form>
+		</Paper>
 	)
 }

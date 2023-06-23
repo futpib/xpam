@@ -1,0 +1,9 @@
+
+.listItem {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding: 8px 14px;
+	min-height: 64px;
+	border-bottom: 1px solid var(--tg-theme-secondary-bg-color);
+}

@@ -5,6 +5,7 @@ import { SearchResultDTO } from "@/dtos/search-result.dto";
 import { useVisibility } from "@/hooks/useVisibility";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { ListItem } from "./ListItem";
 
 export function SearchResults({
 	query,
@@ -53,9 +54,9 @@ export function SearchResults({
 			{data?.pages.map((page, i) => (
 				<div key={i}>
 					{page.data.map((result, j) => (
-						<div key={j}>
+						<ListItem key={j}>
 							{result.title}
-						</div>
+						</ListItem>
 					))}
 				</div>
 			))}
