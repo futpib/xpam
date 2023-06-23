@@ -498,7 +498,7 @@ bot.on('inline_query', withSession(async query => {
 		buttonWebAppUrl.searchParams.set('q', query.query);
 	} else {
 		buttonText = 'Explore';
-		buttonWebAppUrl.pathname = 'explore';
+		buttonWebAppUrl.pathname = 'search';
 	}
 
 	bot.answerInlineQuery(query.id, inlineQueryResults, {

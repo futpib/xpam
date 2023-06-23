@@ -1,3 +1,4 @@
+import { QueryClientProvider } from '@/components/QueryClientProvider'
 import './globals.css'
 import { Inter } from 'next/font/google'
 
@@ -18,7 +19,9 @@ export default function RootLayout({
 			<head>
 				<script src="https://telegram.org/js/telegram-web-app.js"></script>
 			</head>
-			<body className={inter.className}>{children}</body>
+			<QueryClientProvider>
+				<body className={inter.className}>{children}</body>
+			</QueryClientProvider>
 		</html>
 	);
 }
