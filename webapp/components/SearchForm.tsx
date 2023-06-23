@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { SearchResults } from "./SearchResults";
+import { Input } from "./Input";
+import styles from "./SearchForm.module.css";
 
 export function SearchForm({
 	initialQuery,
@@ -11,11 +13,13 @@ export function SearchForm({
 	const [query, setQuery] = useState(initialQuery);
 
 	return (
-		<form>
-			<input
-				type="text"
+		<form
+			className={styles.searchForm}
+		>
+			<Input
+				placeholder="Search"
 				value={query}
-				onChange={(e) => setQuery(e.target.value)}
+				onChange={setQuery}
 			/>
 
 			<SearchResults
