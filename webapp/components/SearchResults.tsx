@@ -6,6 +6,8 @@ import { useVisibility } from "@/hooks/useVisibility";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { ListItem } from "./ListItem";
+import { ListItemSearchResultAvatar } from "./ListItemSearchResultAvatar";
+import styles from './SearchResults.module.css';
 
 export function SearchResults({
 	query,
@@ -55,12 +57,18 @@ export function SearchResults({
 				<div key={i}>
 					{page.data.map((result, j) => (
 						<ListItem key={j}>
+							<ListItemSearchResultAvatar
+								value={result}
+							/>
 							{result.title}
 						</ListItem>
 					))}
 				</div>
 			))}
-			<div ref={afterSearchResultsRef} />
+			<div
+				className={styles.afterSearchResults}
+				ref={afterSearchResultsRef}
+			/>
 		</div>
 	)
 }

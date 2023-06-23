@@ -18,6 +18,7 @@ export function SearchForm({
 			className={styles.searchForm}
 		>
 			<Input
+				autoFocus
 				placeholder="Search"
 				value={query}
 				onChange={setQuery}
