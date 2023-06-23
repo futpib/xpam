@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { MouseEvent, useRef, useState } from "react";
 import { TelegramAudio } from "./TelegramAudio";
 import classNames from "classnames";
 import styles from "./TelegramAudioPlayButton.module.css";
+import { useGlobalPlaybackMutext } from "@/hooks/useGlobalPlaybackMutex";
 
 export function TelegramAudioPlayButton({
 	className,
@@ -14,7 +15,9 @@ export function TelegramAudioPlayButton({
 
 	const [isPlaying, setIsPlaying] = useState(false);
 
-	const handleClick = () => {
+	const handleClick = (event: MouseEvent) => {
+		event.stopPropagation();
+
 		if (telegramAudioRef.current) {
 			if (telegramAudioRef.current.paused) {
 				telegramAudioRef.current.play();
@@ -25,6 +28,16 @@ export function TelegramAudioPlayButton({
 			}
 		}
 	};
+
+	useGlobalPlaybackMutext({
+		isPlaying,
+		handlePause: () => {
+			if (telegramAudioRef.current) {
+				telegramAudioRef.current.pause();
+				setIsPlaying(false);
+			}
+		},
+	});
 
 	return (
 		<>

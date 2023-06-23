@@ -14,7 +14,11 @@ export function ListItem({
 }) {
 	return (
 		<div
-			className={classNames(styles.listItem, className)}
+			className={classNames(
+				styles.listItem,
+				onClick && styles.listItemClickable,
+				className,
+			)}
 			onClick={onClick}
 		>
 			{children}

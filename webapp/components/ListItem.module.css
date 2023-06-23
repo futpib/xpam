@@ -8,3 +8,8 @@
 	min-height: 64px;
 	border-bottom: 1px solid var(--tg-theme-secondary-bg-color);
 }
+
+.listItemClickable {
+	cursor: pointer;
+	user-select: none;
+}
