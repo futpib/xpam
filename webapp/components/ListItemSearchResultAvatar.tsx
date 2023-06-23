@@ -4,7 +4,8 @@ import { SearchResultDTO } from '@/dtos/search-result.dto';
 import { ListItemAvatar } from './ListItemAvatar';
 import styles from './ListItemSearchResultAvatar.module.css';
 import { useMemo } from 'react';
-import { TelegramImage } from './TelegramImage';
+import { TelegramVideo } from './TelegramVideo';
+import { TelegramImageOrLottie } from './TelegramImageOrLottie';
 
 export function ListItemSearchResultAvatar({
 	value,
@@ -50,9 +51,20 @@ export function ListItemSearchResultAvatar({
 	return (
 		<ListItemAvatar>
 			{imageFileId ? (
-				<TelegramImage
+				<TelegramImageOrLottie
 					className={styles.listItemSearchResultAvatarTelegramImage}
 					fileId={imageFileId}
+				/>
+			) : audioFileId ? (
+				<>
+					TODO: audio
+				</>
+			) : videoFileId ? (
+				<TelegramVideo
+					autoPlay
+					muted
+					className={styles.listItemSearchResultAvatarTelegramVideo}
+					fileId={videoFileId}
 				/>
 			) : null}
 		</ListItemAvatar>

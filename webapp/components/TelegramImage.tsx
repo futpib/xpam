@@ -5,9 +5,11 @@ import classNames from "classnames";
 export function TelegramImage({
 	className,
 	fileId,
+	onError,
 }: {
 	className?: string;
 	fileId: string;
+	onError?: () => void;
 }) {
 	const src = useTelegramFileUrl(fileId);
 
@@ -15,6 +17,7 @@ export function TelegramImage({
 		<img
 			className={classNames(styles.telegramImage, className)}
 			src={src}
+			onError={onError}
 		/>
 	);
 }
