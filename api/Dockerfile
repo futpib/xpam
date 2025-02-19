@@ -1,4 +1,4 @@
-FROM node:18-alpine as builder
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
@@ -11,6 +11,9 @@ COPY . /app/
 RUN yarn build
 
 FROM node:18-alpine
+
+RUN apk update \
+	&& apk add --no-cache openssl
 
 WORKDIR /app
 
